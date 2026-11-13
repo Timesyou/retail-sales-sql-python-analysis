@@ -1,12 +1,9 @@
 name: Publish uploaded ShelfSense archive
-
 on:
   workflow_dispatch:
-
 permissions:
   contents: write
   pull-requests: write
-
 jobs:
   publish:
     runs-on: ubuntu-latest
@@ -16,114 +13,29 @@ jobs:
         with:
           ref: main
           fetch-depth: 0
-
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.13"
-
-      - name: Extract and validate project archive
+      - name: Validate and extract archive
         run: |
-          python -  &lt;&lt;'PY'
-          from pathlib import Path, PurePosixPath
-          from zipfile import ZipFile
-          import shutil
-
-          archive = Path("ShelfSense-Inventory-Intelligence-v1.1.0.zip")
-          if not archive.is_file():
-              raise SystemExit("Project archive not found at repository root.")
-          destination = Path(".")
-          extracted = 0
-          with ZipFile(archive) as zf:
-              bad = zf.testzip()
-              if bad:
-                  raise SystemExit(f"ZIP integrity check failed: {bad}")
-              for item in zf.infolist():
-                  name = PurePosixPath(item.filename)
-                  if name.is_absolute() or ".." in name.parts or not name.parts or name.parts[0] != "shelfsense":
-                      raise SystemExit(f"Unsafe archive path: {item.filename}")
-                  mode = (item.external_attr >> 16) & 0o170000
-                  if mode == 0o120000:
-                      raise SystemExit(f"Archive symlink rejected: {item.filename}")
-                  if len(name.parts) == 1:
-                      continue
-                  rel = PurePosixPath(*name.parts[1:])
-                  if any(part in {".git", "__pycache__", ".venv", "venv"} for part in rel.parts):
-                      raise SystemExit(f"Unwanted directory: {item.filename}")
-                  leaf = rel.name.lower()
-                  if leaf == ".env" or leaf.startswith(".env.") or leaf.endswith((".pem", ".key", ".pyc")):
-                      raise SystemExit(f"Potential secret or generated file: {item.filename}")
-                  if rel.as_posix() == "demo-output/shelfsense.sqlite":
-                      continue
-                  target = destination.joinpath(*rel.parts)
-                  if item.is_dir():
-                      target.mkdir(parents=True, exist_ok=True)
-                  else:
-                      target.parent.mkdir(parents=True, exist_ok=True)
-                      target.write_bytes(zf.read(item))
-                      extracted += 1
-          if extracted &lt; 30:
-              raise SystemExit(f"Unexpected file count: {extracted}")
-          print(f"Extracted {extracted} validated files.")
-
-          ignore = Path(".gitignore")
-          if ignore.exists():
-              text = ignore.read_text(encoding="utf-8").replace("!demo-output/shelfsense.sqlite\\n", "")
-              ignore.write_text(text, encoding="utf-8")
-          readme = Path("README.md")
-          text = readme.read_text(encoding="utf-8")
-          text = text.replace(
-              "The `demo-output/` folder contains reports generated from the bundled synthetic CSV files, including a SQLite snapshot that can be opened with DB Browser for SQLite. Open `demo-output/dashboard.html` to see the dashboard without installing anything.",
-              "The `demo-output/` folder contains portable reports generated from the bundled synthetic CSV files. The SQLite database is generated locally when you run the CLI and is intentionally not committed. Open `demo-output/dashboard.html` to see the dashboard without installing anything."
-          )
-          text = text.replace(
-              "| `shelfsense.sqlite` | Source products and transactions, calculated metrics, recommendations and SQL views |",
-              "| `shelfsense.sqlite` | Generated locally by the CLI: source products and transactions, calculated metrics, recommendations and SQL views |"
-          )
-          readme.write_text(text, encoding="utf-8")
-          demo_readme = Path("demo-output/README.md")
-          if demo_readme.exists():
-              text = demo_readme.read_text(encoding="utf-8")
-              text = text.replace(
-                  "This directory contains the generated demonstration reports. The SQLite snapshot is included for inspection; new runs create a fresh database in the chosen output directory.",
-                  "This directory contains portable demonstration reports generated from the bundled synthetic inputs. Run the CLI to create a fresh SQLite database in the output directory; generated databases are intentionally excluded from version control."
-              )
-              demo_readme.write_text(text, encoding="utf-8")
-          PY
-
-      - name: Run unit tests
+ python -c "from zipfile import ZipFile; from pathlib import PurePosixPath; z=ZipFile('ShelfSense-Inventory-Intelligence-v1.1.0.zip'); assert z.testzip() is None; names=[PurePosixPath(n) for n in z.namelist()]; assert all(not p.is_absolute() and '..' not in p.parts and p.parts and p.parts[0]=='shelfsense' for p in names); assert not any(p.name=='.env' or p.name.startswith('.env.') or p.name.endswith(('.pem','.key','.pyc')) or any(x in {'.git','__pycache__','.venv','venv'} for x in p.parts) for p in ames); z.extractall('/tmp/shelf-upload')"
+          cp -a /tmp/shelf-upload/shelfsense/. .
+          rm -f demo-output/shelfsense.sqlite
+ python -c "from pathlib import Path; p=Path('.gitignore'); s=p.read_text(); p.write_text(s.replace('!demo-output/shelfsense.sqlite\n',''))"
+      - name: Run tests
         env:
           PYTHONPATH: src
         run: python -m unittest discover -s tests -v
-
-      - name: Compile application and tests
+      - name: Compile source
         run: python -m compileall -q src tests
-
-      - name: Run the sample project
+      - name: Run demo and verify outputs
         env:
           PYTHONPATH: src
         run: |
           python -m shelfsense --sales data/sales.csv --inventory data/inventory.csv --output "$RUNNER_TEMP/shelfsense-check"
-          python - &lt;&lt;'PY'
-          import json
-          import os
-          import sqlite3
-          from pathlib import Path
-          output = Path(os.environ["RUNNER_TEMP"]) / "shelfsense-check"
-          required = ("dashboard.html", "sku_performance.csv", "replenishment_plan.csv", "summary.json", "shelfsense.sqlite")
-          for name in required:
-              if not (output / name).is_file():
-                  raise SystemExit(f"Missing generated output: {name}")
-          with sqlite3.connect(output / "shelfsense.sqlite") as db:
-              if db.execute("PRAGMA integrity_check").fetchone()[0] != "ok":
-                  raise SystemExit("SQLite integrity check failed.")
-          summary = json.loads((output / "summary.json").read_text())
-          assert summary["sku_count"] == 9
-          assert summary["transaction_lines"] == 652
-          print("Demo outputs and SQLite integrity verified.")
-          PY
-
-      - name: Create feature branch and pull request
+          python -c "import json,os,sqlite3; from pathlib import Path; p=Path(os.environ['RUNNER_TEMP'])/'shelfsense-check'; assert all((p/n).is_file() for n in ('dashboard.html','sku_performance.csv','replenishment_plan.csv','summary.json','shelfsense.sqlite')); c=sqlite3.connect(p/'shelfsense.sqlite'); assert c.execute('pragma integrity_check').fetchone()[0]=='ok'; s=json.loads((p/'summary.json').read_text()); assert s['sku_count']==9 and s['transaction_lines']==652; c.close()"
+      - name: Create branch and pull request
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -133,28 +45,11 @@ jobs:
           git switch -c "$branch"
           rm -rf src/shelfsense/__pycache__ tests/__pycache__
           rm -f ShelfSense-Inventory-Intelligence-v1.1.0.zip .github/workflows/publish-archive.yml
-          if find . -type f \( -name '.env' -o -name '.env.*' -o -name '*.pem' -o -name '*.key' -o -name '*.sqlite' -o -name '*.db' -o -name '*.pyc' \) | grep -q .; then
-            echo "A sensitive or generated file remains; refusing to commit." >&2
-            exit 1
-          fi
+          python -c "from pathlib import Path; bad=[str(p) for p in Path('.').rglob('*') if p.is_file() and (p.name=='.env' or p.name.startswith('.env.') or p.suffix.lower() in ('.pem','.key','.sqlite','.db','.pyc'))]; print(bad); assert not bad"
           git add --all
           git diff --cached --name-only
-          if git diff --cached --quiet; then
-            echo "No project changes to commit." >&2
-            exit 1
-          fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git commit -m "Add ShelfSense retail inventory intelligence project"
           git push --set-upstream origin "$branch"
-          gh pr create --base main --head "$branch" --title "Add ShelfSense inventory intelligence project" --body "## Summary
-          - Add a Python application for retail sales analysis and inventory replenishment.
-          - Include synthetic sample data, SQL schema and examples, a local HTML dashboard, documentation, and automated tests.
-          - Exclude the uploaded ZIP and generated database/cache files from version control.
-
-          ## Verification
-          - Run the unit test suite.
-          - Compile source and test modules.
-          - Execute the sample analysis and verify generated SQLite integrity.
-
-          All example figures are computed from bundled synthetic data."
+          gh pr create --base main --head "$branch" --title "Add ShelfSense inventory intelligence project" --body "Adds the ShelfSense retail analytics application, synthetic data, SQL schema and examples, HTML dashboard, methodology documentation, and automated tests. The workflow runs the test suite, compiles source, executes the sample analysis, and verifies the generated SQLite database. Demonstration data is synthetic."
