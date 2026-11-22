@@ -16,13 +16,13 @@ jobs:
     timeout-minutes: 45
     steps:
       - name: Check out the selected repair branch
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ github.ref }}
           fetch-depth: 0
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.13"
 
@@ -98,6 +98,10 @@ jobs:
                   raise SystemExit(f"SQLite integrity check failed: {result}")
           print(f"Demo verified: {summary['sku_count']} SKUs, {summary['transaction_lines']} transaction lines")
           PY
+
+      - name: Remove generated Python bytecode
+        shell: bash
+        run: find . -type d -name __pycache__ -prune -exec rm -rf {} +
 
       - name: Check repository contents and create pull request
         env:
