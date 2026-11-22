@@ -1,0 +1,10 @@
+sku,name,category,on_hand,on_order,backorders,lead_time_days,order_cost,annual_holding_cost,service_level,pack_size,min_order_qty
+TEA-01,Assam Tea 250g,Grocery,55,0,0,4,10,3.5,0.95,6,12
+COF-02,Ground Coffee 200g,Beverages,34,6,0,7,12,4.0,0.97,6,6
+RIC-03,Premium Rice 1kg,Grocery,70,0,3,5,8,3.0,0.95,10,20
+OIL-04,Sunflower Oil 1L,Grocery,22,0,0,6,10,4.0,0.98,6,12
+SNK-05,Masala Snack Pack,Snacks,58,12,0,3,7,1.5,0.9,12,24
+DET-06,Laundry Detergent 1kg,Home Care,44,0,0,8,12,4.5,0.95,6,6
+SOAP-07,Bathing Soap 100g,Personal Care,28,0,2,4,7,1.5,0.95,12,24
+BIS-08,Butter Biscuits,Bakery,84,0,0,2,6,1.2,0.9,12,24
+NEW-09,New Seasonal Product,Seasonal,0,0,0,10,9,2.0,0.95,6,6
