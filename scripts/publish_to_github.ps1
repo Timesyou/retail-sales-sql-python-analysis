@@ -66,14 +66,22 @@ if ($LASTEXITCODE -ne 1) {
     throw "Could not inspect staged changes. No push was attempted."
 }
 
+$BranchName = "feature/shelfsense-publish-" + (Get-Date -Format "yyyyMMdd-HHmmss")
+& git -C $RepositoryPath switch --create $BranchName
+if ($LASTEXITCODE -ne 0) {
+    throw "Could not create feature branch $BranchName. No commit or push was attempted."
+}
+
 & git -C $RepositoryPath commit -m $CommitMessage
 if ($LASTEXITCODE -ne 0) {
     throw "git commit failed. Check your Git identity and retry. No push was attempted."
 }
 
-& git -C $RepositoryPath push origin main
+& git -C $RepositoryPath push --set-upstream origin $BranchName
 if ($LASTEXITCODE -ne 0) {
-    throw "Push failed. The local commit is preserved; review the Git error before retrying."
+    throw "Push failed. The local commit and feature branch are preserved; review the Git error before retrying."
 }
 
-Write-Host "ShelfSense was pushed to https://github.com/Timesyou/retail-sales-sql-python-analysis" -ForegroundColor Green
+$CompareUrl = "https://github.com/Timesyou/retail-sales-sql-python-analysis/compare/main...$BranchName?expand=1"
+Write-Host "ShelfSense was pushed to feature branch $BranchName." -ForegroundColor Green
+Write-Host "Review the changes and open a pull request: $CompareUrl" -ForegroundColor Cyan
