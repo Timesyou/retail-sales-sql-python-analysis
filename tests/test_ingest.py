@@ -72,6 +72,16 @@ class CsvIngestionTests(unittest.TestCase):
             with self.assertRaisesRegex(DataValidationError, "missing required columns"):
                 load_sales(path)
 
+    def test_rejects_noncanonical_iso_date_format(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "sales.csv"
+            path.write_text(
+                "date,sku,units,unit_price,unit_cost\\n20260101,SKU-1,1,2.00,1.00\\n",
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(DataValidationError, "YYYY-MM-DD"):
+                load_sales(path)
+
     def test_rejects_non_finite_money_values(self):
         with tempfile.TemporaryDirectory() as folder:
             path = Path(folder) / "sales.csv"
