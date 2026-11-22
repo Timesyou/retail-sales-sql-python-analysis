@@ -53,6 +53,9 @@ jobs:
               ignore.write_text("\n".join(lines) + "\n", encoding="utf-8")
           PY
 
+      - name: Install ShelfSense package
+        run: python -m pip install --editable .
+
       - name: Run ShelfSense unit tests
         env:
           PYTHONPATH: src
