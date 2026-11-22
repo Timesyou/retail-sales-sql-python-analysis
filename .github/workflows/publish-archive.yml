@@ -1,6 +1,9 @@
 name: Validate and publish ShelfSense archive
 
 on:
+  push:
+    branches:
+      - "fix/shelfsense-publisher-*"
   workflow_dispatch:
 
 permissions:
@@ -38,6 +41,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          # Keep the CI workflow installed through the GitHub App, not the Actions token.
+          rm -f "$RUNNER_TEMP/shelf-upload/shelfsense/.github/workflows/tests.yml"
           cp -a "$RUNNER_TEMP/shelf-upload/shelfsense/." .
           rm -f demo-output/shelfsense.sqlite
           python - <<'PY'
