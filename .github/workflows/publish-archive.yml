@@ -1,55 +1,156 @@
-name: Publish uploaded ShelfSense archive
+name: Validate and publish ShelfSense archive
+
 on:
   workflow_dispatch:
+
 permissions:
   contents: write
   pull-requests: write
+
 jobs:
   publish:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
-      - name: Check out main
-        uses: actions/checkout@v4
+      - name: Check out the selected repair branch
+        uses: actions/checkout@v6
         with:
-          ref: main
+          ref: ${{ github.ref }}
           fetch-depth: 0
+
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.13"
-      - name: Validate and extract archive
-        run: |
- python -c "from zipfile import ZipFile; from pathlib import PurePosixPath; z=ZipFile('ShelfSense-Inventory-Intelligence-v1.1.0.zip'); assert z.testzip() is None; names=[PurePosixPath(n) for n in z.namelist()]; assert all(not p.is_absolute() and '..' not in p.parts and p.parts and p.parts[0]=='shelfsense' for p in names); assert not any(p.name=='.env' or p.name.startswith('.env.') or p.name.endswith(('.pem','.key','.pyc')) or any(x in {'.git','__pycache__','.venv','venv'} for x in p.parts) for p in ames); z.extractall('/tmp/shelf-upload')"
-          cp -a /tmp/shelf-upload/shelfsense/. .
-          rm -f demo-output/shelfsense.sqlite
- python -c "from pathlib import Path; p=Path('.gitignore'); s=p.read_text(); p.write_text(s.replace('!demo-output/shelfsense.sqlite\n',''))"
-      - name: Run tests
-        env:
-          PYTHONPATH: src
-        run: python -m unittest discover -s tests -v
-      - name: Compile source
-        run: python -m compileall -q src tests
-      - name: Run demo and verify outputs
-        env:
-          PYTHONPATH: src
-        run: |
-          python -m shelfsense --sales data/sales.csv --inventory data/inventory.csv --output "$RUNNER_TEMP/shelfsense-check"
-          python -c "import json,os,sqlite3; from pathlib import Path; p=Path(os.environ['RUNNER_TEMP'])/'shelfsense-check'; assert all((p/n).is_file() for n in ('dashboard.html','sku_performance.csv','replenishment_plan.csv','summary.json','shelfsense.sqlite')); c=sqlite3.connect(p/'shelfsense.sqlite'); assert c.execute('pragma integrity_check').fetchone()[0]=='ok'; s=json.loads((p/'summary.json').read_text()); assert s['sku_count']==9 and s['transaction_lines']==652; c.close()"
-      - name: Create branch and pull request
-        env:
-          GH_TOKEN: ${{ github.token }}
+
+      - name: Test safe archive extractor and validate archive
         shell: bash
         run: |
           set -euo pipefail
-          branch="feature/shelfsense-inventory-intelligence-v1.1.0"
-          git switch -c "$branch"
-          rm -rf src/shelfsense/__pycache__ tests/__pycache__
-          rm -f ShelfSense-Inventory-Intelligence-v1.1.0.zip .github/workflows/publish-archive.yml
-          python -c "from pathlib import Path; bad=[str(p) for p in Path('.').rglob('*') if p.is_file() and (p.name=='.env' or p.name.startswith('.env.') or p.suffix.lower() in ('.pem','.key','.sqlite','.db','.pyc'))]; print(bad); assert not bad"
+          python -m unittest discover -s .github/scripts -p 'test_*.py' -v
+          python .github/scripts/safe_extract_archive.py \
+            ShelfSense-Inventory-Intelligence-v1.1.0.zip \
+            "$RUNNER_TEMP/shelf-upload"
+          test -f "$RUNNER_TEMP/shelf-upload/shelfsense/pyproject.toml"
+          test -d "$RUNNER_TEMP/shelf-upload/shelfsense/src/shelfsense"
+
+      - name: Stage ShelfSense source
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Keep the CI workflow installed through the GitHub App, not the Actions token.
+          rm -f "$RUNNER_TEMP/shelf-upload/shelfsense/.github/workflows/tests.yml"
+          cp -a "$RUNNER_TEMP/shelf-upload/shelfsense/." .
+          rm -f demo-output/shelfsense.sqlite
+          python - <<'PY'
+          from pathlib import Path
+          ignore = Path(".gitignore")
+          if ignore.exists():
+              lines = [
+                  line for line in ignore.read_text(encoding="utf-8").splitlines()
+                  if line.strip() != "!demo-output/shelfsense.sqlite"
+              ]
+              ignore.write_text("\n".join(lines) + "\n", encoding="utf-8")
+          PY
+
+      - name: Install ShelfSense package
+        run: python -m pip install --editable .
+
+      - name: Run ShelfSense unit tests
+        env:
+          PYTHONPATH: src
+        run: python -m unittest discover -s tests -v
+
+      - name: Compile Python source and tests
+        run: python -m compileall -q src tests
+
+      - name: Run demo and verify generated outputs
+        env:
+          PYTHONPATH: src
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m shelfsense \
+            --sales data/sales.csv \
+            --inventory data/inventory.csv \
+            --output "$RUNNER_TEMP/shelfsense-check"
+          python - <<'PY'
+          import json
+          import os
+          import sqlite3
+          from pathlib import Path
+
+          output = Path(os.environ["RUNNER_TEMP"]) / "shelfsense-check"
+          required = (
+              "dashboard.html",
+              "sku_performance.csv",
+              "replenishment_plan.csv",
+              "summary.json",
+              "shelfsense.sqlite",
+          )
+          missing = [name for name in required if not (output / name).is_file()]
+          if missing:
+              raise SystemExit(f"Missing demo outputs: {missing}")
+          summary = json.loads((output / "summary.json").read_text(encoding="utf-8"))
+          if int(summary.get("sku_count", 0)) <= 0 or int(summary.get("transaction_lines", 0)) <= 0:
+              raise SystemExit(f"Unexpected empty demo summary: {summary}")
+          with sqlite3.connect(output / "shelfsense.sqlite") as connection:
+              result = connection.execute("PRAGMA integrity_check").fetchone()[0]
+              if result != "ok":
+                  raise SystemExit(f"SQLite integrity check failed: {result}")
+          print(f"Demo verified: {summary['sku_count']} SKUs, {summary['transaction_lines']} transaction lines")
+          PY
+
+      - name: Remove generated Python bytecode
+        shell: bash
+        run: find . -type d -name __pycache__ -prune -exec rm -rf {} +
+
+      - name: Check repository contents and publish branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          bad = []
+          for path in Path(".").rglob("*"):
+              if not path.is_file() or ".git" in path.parts:
+                  continue
+              name = path.name.lower()
+              suffix = path.suffix.lower()
+              if name == ".env" or name.startswith(".env."):
+                  bad.append(str(path))
+              if suffix in {".pem", ".key", ".p12", ".pfx", ".sqlite", ".db", ".pyc"}:
+                  bad.append(str(path))
+              if any(part in {".venv", "venv", "__pycache__"} for part in path.parts):
+                  bad.append(str(path))
+          if bad:
+              raise SystemExit(f"Generated or sensitive files found: {sorted(set(bad))}")
+          required = [
+              Path(".github/workflows/publish-archive.yml"),
+              Path(".github/workflows/tests.yml"),
+              Path("README.md"),
+              Path("pyproject.toml"),
+              Path("src/shelfsense"),
+              Path("tests"),
+          ]
+          missing = [str(path) for path in required if not path.exists()]
+          if missing:
+              raise SystemExit(f"Expected project files missing: {missing}")
+          if not Path("ShelfSense-Inventory-Intelligence-v1.1.0.zip").is_file():
+              raise SystemExit("Original source archive must remain in the repository")
+          PY
+          branch="feature/shelfsense-inventory-intelligence-${GITHUB_RUN_ID}"
+          git switch --create "$branch"
           git add --all
+          git diff --cached --check
+          if git diff --cached --quiet; then
+            echo "No changes to publish; ShelfSense is already present on this branch."
+            exit 0
+          fi
           git diff --cached --name-only
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -m "Add ShelfSense retail inventory intelligence project"
+          git commit -m "Add tested ShelfSense retail inventory intelligence project"
           git push --set-upstream origin "$branch"
-          gh pr create --base main --head "$branch" --title "Add ShelfSense inventory intelligence project" --body "Adds the ShelfSense retail analytics application, synthetic data, SQL schema and examples, HTML dashboard, methodology documentation, and automated tests. The workflow runs the test suite, compiles source, executes the sample analysis, and verifies the generated SQLite database. Demonstration data is synthetic."
+          echo "Validated ShelfSense branch: $branch"
+          echo "Open a pull request through the GitHub app integration after this workflow completes."

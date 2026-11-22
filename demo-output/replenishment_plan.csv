@@ -1,0 +1,4 @@
+sku,product_name,category,abc_class,xyz_class,inventory_position,safety_stock,reorder_point,economic_order_quantity,recommended_order_qty,estimated_order_value
+COF-02,Ground Coffee 200g,Beverages,A,X,40,10,47,108,120,516.00
+OIL-04,Sunflower Oil 1L,Grocery,A,X,22,10,47,110,138,703.80
+SOAP-07,Bathing Soap 100g,Personal Care,C,X,26,7,37,163,180,216.00

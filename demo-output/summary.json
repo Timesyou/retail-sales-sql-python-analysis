@@ -1,0 +1,16 @@
+{
+  "period_start": "2026-01-01",
+  "period_end": "2026-03-31",
+  "observed_days": 90,
+  "sku_count": 9,
+  "transaction_lines": 652,
+  "units_sold": 6375,
+  "revenue": "21766.85",
+  "cost_of_goods_sold": "12500.43",
+  "gross_profit": "9266.42",
+  "gross_margin_pct": 42.57,
+  "skus_to_reorder": 3,
+  "recommended_order_units": 438,
+  "estimated_replenishment_value": "1435.80",
+  "forecast_method": "Weighted moving average over the latest 28 observed calendar days"
+}

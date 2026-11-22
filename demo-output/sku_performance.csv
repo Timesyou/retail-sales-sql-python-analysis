@@ -1,0 +1,10 @@
+sku,product_name,category,units_sold,revenue,cost_of_goods_sold,gross_profit,gross_margin_pct,average_daily_demand,daily_demand_stddev,demand_cv,forecast_daily_demand,abc_class,xyz_class,safety_stock,reorder_point,economic_order_quantity,inventory_position,stock_cover_days,decision,recommended_order_qty,estimated_order_value
+TEA-01,Assam Tea 250g,Grocery,972,4374.00,2041.20,2332.80,53.33,10.8,2.4998,0.2315,10.8818,A,X,9,53,151,55,5.05,HOLD,0,0.00
+COF-02,Ground Coffee 200g,Beverages,478,4254.20,2055.40,2198.80,51.69,5.3111,1.9925,0.3751,5.2586,A,X,10,47,108,40,7.61,REORDER,120,516.00
+OIL-04,Sunflower Oil 1L,Grocery,596,4023.00,3039.60,983.40,24.44,6.6222,1.9865,0.3,6.0271,A,X,10,47,110,22,3.65,REORDER,138,703.80
+RIC-03,Premium Rice 1kg,Grocery,1030,3296.00,2420.50,875.50,26.56,11.4444,2.1402,0.187,11.5025,A,X,8,66,150,67,5.82,HOLD,0,0.00
+SNK-05,Masala Snack Pack,Snacks,1135,2043.00,964.75,1078.25,52.78,12.6111,2.138,0.1695,12.9064,B,X,5,44,208,70,5.42,HOLD,0,0.00
+BIS-08,Butter Biscuits,Bakery,1379,1723.75,854.98,868.77,50.4,15.3222,2.0914,0.1365,15.3793,B,X,4,35,237,84,5.46,HOLD,0,0.00
+SOAP-07,Bathing Soap 100g,Personal Care,694,1561.50,832.80,728.70,46.67,7.7111,2.0669,0.268,7.4236,C,X,7,37,163,26,3.5,REORDER,180,216.00
+DET-06,Laundry Detergent 1kg,Home Care,91,491.40,291.20,200.20,40.74,1.0111,2.0736,2.0508,1.0025,C,Z,10,19,45,44,43.89,HOLD,0,0.00
+NEW-09,New Seasonal Product,Seasonal,0,0.00,0.00,0.00,0.0,0.0,0.0,,0.0,C,N,0,0,0,0,,HOLD,0,0.00
