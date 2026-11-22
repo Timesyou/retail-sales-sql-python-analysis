@@ -1,9 +1,6 @@
 name: Validate and publish ShelfSense archive
 
 on:
-  push:
-    branches:
-      - "fix/shelfsense-publisher-*"
   workflow_dispatch:
 
 permissions:
@@ -105,9 +102,7 @@ jobs:
         shell: bash
         run: find . -type d -name __pycache__ -prune -exec rm -rf {} +
 
-      - name: Check repository contents and create pull request
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Check repository contents and publish branch
         shell: bash
         run: |
           set -euo pipefail
