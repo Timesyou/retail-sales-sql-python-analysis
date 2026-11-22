@@ -79,7 +79,7 @@ def load_sales(path: str | Path) -> list[Sale]:
     sales: list[Sale] = []
     for row_number, row in enumerate(rows, start=2):
         date_text = row["date"]
-        if not re.fullmatch(r"\\d{4}-\\d{2}-\\d{2}", date_text):
+        if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", date_text):
             raise DataValidationError(f"Row {row_number}: date must use YYYY-MM-DD")
         try:
             sale_date = date.fromisoformat(date_text)
