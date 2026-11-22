@@ -1,6 +1,9 @@
 name: ShelfSense CI
 
 on:
+  push:
+    branches:
+      - "feature/shelfsense-inventory-intelligence-*"
   pull_request:
   workflow_dispatch:
 
@@ -10,7 +13,11 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
@@ -18,24 +25,23 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: "3.13"
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install package
+        run: python -m pip install --editable .
 
       - name: Test safe archive extractor
         run: python -m unittest discover -s .github/scripts -p 'test_*.py' -v
 
       - name: Run application unit tests
-        env:
-          PYTHONPATH: src
         run: python -m unittest discover -s tests -v
 
       - name: Compile Python source and tests
         run: python -m compileall -q src tests
 
-      - name: Run demo and verify output database
-        env:
-          PYTHONPATH: src
+      - name: Run installed CLI and verify output database
         run: |
-          python -m shelfsense --sales data/sales.csv --inventory data/inventory.csv --output "$RUNNER_TEMP/shelfsense-check"
+          shelfsense --sales data/sales.csv --inventory data/inventory.csv --output "$RUNNER_TEMP/shelfsense-check"
           python - <<'PY'
           import json
           import os
