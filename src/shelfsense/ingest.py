@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import csv
+import re
 from datetime import date
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
@@ -77,10 +78,13 @@ def load_sales(path: str | Path) -> list[Sale]:
     rows = _read_dict_rows(Path(path), SALES_COLUMNS)
     sales: list[Sale] = []
     for row_number, row in enumerate(rows, start=2):
+        date_text = row["date"]
+        if not re.fullmatch(r"\\d{4}-\\d{2}-\\d{2}", date_text):
+            raise DataValidationError(f"Row {row_number}: date must use YYYY-MM-DD")
         try:
-            sale_date = date.fromisoformat(row["date"])
+            sale_date = date.fromisoformat(date_text)
         except ValueError as exc:
-            raise DataValidationError(f"Row {row_number}: date must use YYYY-MM-DD") from exc
+            raise DataValidationError(f"Row {row_number}: date must be a valid calendar date") from exc
         sku = row["sku"].strip()
         if not sku:
             raise DataValidationError(f"Row {row_number}: sku cannot be empty")
