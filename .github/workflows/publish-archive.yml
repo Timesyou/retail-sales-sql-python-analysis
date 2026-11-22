@@ -1,9 +1,6 @@
 name: Validate and publish ShelfSense archive
 
 on:
-  push:
-    branches:
-      - "fix/shelfsense-publisher-*"
   workflow_dispatch:
 
 permissions:
