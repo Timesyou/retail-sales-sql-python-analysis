@@ -70,7 +70,7 @@ It clones `Timesyou/retail-sales-sql-python-analysis` into `%USERPROFILE%\source
 .\scripts\publish_to_github.ps1 -RepositoryPath "C:\path\to\retail-sales-sql-python-analysis"
 ```
 
-The publisher verifies the repository URL, requires the `main` branch and a clean working tree, copies the project, creates a commit and pushes it. It does not force-push or overwrite uncommitted work. GitHub authentication must be configured locally; Git Credential Manager may open a browser sign-in during the first push. Never paste an access token into the script or a chat.
+The publisher verifies the repository URL, requires the `main` branch and a clean working tree, copies the project, creates a commit on a new `feature/shelfsense-publish-*` branch, and pushes only that branch. It never pushes directly to `main` or force-pushes. Review the printed GitHub compare link and open a pull request. GitHub authentication must be configured locally; pushing workflow files may require the credential to have the `workflow` permission. Never paste an access token into the script or a chat.
 
 ## Included demonstration
 
@@ -114,7 +114,7 @@ Run the test suite from the repository root:
 python -m unittest discover -s tests -v
 ```
 
-The tests cover statistical formulas, service-level quantiles, exact decimal aggregation, input validation, zero-demand products, replenishment constraints, dashboard escaping and SQLite output. GitHub Actions installs the package and runs the suite on Python 3.10, 3.11, 3.12 and 3.13.
+The tests cover statistical formulas, service-level quantiles, exact decimal aggregation, input validation, zero-demand products, replenishment constraints, dashboard escaping and SQLite output. GitHub Actions installs the package, runs the archive-security and application suites, compiles the source, and exercises the installed CLI on Python 3.10, 3.11, 3.12 and 3.13.
 
 ## Project layout
 
