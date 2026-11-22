@@ -1,0 +1,57 @@
+name: ShelfSense CI
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Test safe archive extractor
+        run: python -m unittest discover -s .github/scripts -p 'test_*.py' -v
+
+      - name: Run application unit tests
+        env:
+          PYTHONPATH: src
+        run: python -m unittest discover -s tests -v
+
+      - name: Compile Python source and tests
+        run: python -m compileall -q src tests
+
+      - name: Run demo and verify output database
+        env:
+          PYTHONPATH: src
+        run: |
+          python -m shelfsense --sales data/sales.csv --inventory data/inventory.csv --output "$RUNNER_TEMP/shelfsense-check"
+          python - <<'PY'
+          import json
+          import os
+          import sqlite3
+          from pathlib import Path
+
+          output = Path(os.environ["RUNNER_TEMP"]) / "shelfsense-check"
+          required = ("dashboard.html", "sku_performance.csv", "replenishment_plan.csv", "summary.json", "shelfsense.sqlite")
+          missing = [name for name in required if not (output / name).is_file()]
+          if missing:
+              raise SystemExit(f"Missing demo outputs: {missing}")
+          summary = json.loads((output / "summary.json").read_text(encoding="utf-8"))
+          if summary.get("sku_count", 0) <= 0 or summary.get("transaction_lines", 0) <= 0:
+              raise SystemExit(f"Invalid demo summary: {summary}")
+          with sqlite3.connect(output / "shelfsense.sqlite") as db:
+              if db.execute("PRAGMA integrity_check").fetchone()[0] != "ok":
+                  raise SystemExit("SQLite integrity check failed")
+          print(f"Verified {summary['sku_count']} SKUs and {summary['transaction_lines']} transaction lines")
+          PY
