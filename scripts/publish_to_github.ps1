@@ -44,6 +44,16 @@ if ($Before) {
     throw "The target repository has uncommitted changes. Commit or stash them first; this script will not overwrite existing work."
 }
 
+& git -C $RepositoryPath fetch origin main
+if ($LASTEXITCODE -ne 0) {
+    throw "Could not fetch origin/main. No files were copied."
+}
+$LocalHead = (& git -C $RepositoryPath rev-parse HEAD).Trim()
+$RemoteHead = (& git -C $RepositoryPath rev-parse origin/main).Trim()
+if ($LASTEXITCODE -ne 0 -or $LocalHead -ne $RemoteHead) {
+    throw "Local main is not exactly up to date with origin/main. Fast-forward it, then rerun this script."
+}
+
 Write-Host "Copying ShelfSense project files into $RepositoryPath" -ForegroundColor Cyan
 $ExcludedDirectories = @(".git", ".venv", "venv", "__pycache__", "build", "dist", ".pytest_cache")
 Get-ChildItem -LiteralPath $ProjectRoot -Force | Where-Object {
@@ -55,6 +65,10 @@ Get-ChildItem -LiteralPath $ProjectRoot -Force | Where-Object {
 & git -C $RepositoryPath add --all
 if ($LASTEXITCODE -ne 0) {
     throw "git add failed. No push was attempted."
+}
+& git -C $RepositoryPath diff --cached --check
+if ($LASTEXITCODE -ne 0) {
+    throw "Whitespace or conflict-marker checks failed. No commit or push was attempted."
 }
 
 $Staged = & git -C $RepositoryPath diff --cached --quiet

@@ -16,7 +16,7 @@ It uses the Python standard library only. There are no API keys, paid services, 
 - Calculates service-level-based safety stock, reorder points and economic order quantities.
 - Accounts for on-hand units, open purchase orders, backorders, minimum order quantities and pack-size multiples.
 - Exports a self-contained `dashboard.html`, `sku_performance.csv`, `replenishment_plan.csv`, `summary.json` and `shelfsense.sqlite`.
-- Includes SQL views, 30 unit tests and a GitHub Actions test workflow.
+- Includes SQL views, 31 unit tests and a GitHub Actions test workflow.
 
 ## Quick start
 
