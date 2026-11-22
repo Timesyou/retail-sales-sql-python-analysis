@@ -145,14 +145,5 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git commit -m "Add tested ShelfSense retail inventory intelligence project"
           git push --set-upstream origin "$branch"
-          gh pr create \
-            --base main \
-            --head "$branch" \
-            --title "Add tested ShelfSense inventory intelligence project" \
-            --body "## Summary
-          - Publish the ShelfSense Python application, synthetic datasets, SQL examples, generated dashboard, and project documentation.
-          - Validate the uploaded ZIP before extraction, including CRC, traversal, absolute paths, symlinks, duplicate paths, secrets, and size limits.
-          - Run archive-security tests, the application unit tests, Python compilation, and the end-to-end demo with SQLite integrity verification.
-          - Preserve the original archive and the publisher workflow so the process is repeatable.
-
-          All data is synthetic. CI results are attached to this pull request."
+          echo "Validated ShelfSense branch: $branch"
+          echo "Open a pull request through the GitHub app integration after this workflow completes."
